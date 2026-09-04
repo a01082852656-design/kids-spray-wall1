@@ -78,6 +78,7 @@
     function App() {
       const [currentRole, setCurrentRole] = useState('START');
       const [selectedSegments, setSelectedSegments] = useState({});
+      const [selectionOrder, setSelectionOrder] = useState([]);
       const [segments, setSegments] = useState([]);
       const [meta, setMeta] = useState({ w: 0, h: 0 });
       const [transform, setTransform] = useState({ x: 0, y: 0, scale: 0.18 });
@@ -116,14 +117,23 @@
         ev.stopPropagation();
         setSelectedSegments(prev => {
           const next = { ...prev };
-          if (next[id]) delete next[id];
+          const wasSelected = !!next[id];
+          if (wasSelected) delete next[id];
           else next[id] = currentRole;
           return next;
         });
+        setSelectionOrder(prev => {
+          const key = String(id);
+          if (prev.includes(key)) return prev.filter(x => x !== key);
+          return [...prev, key];
+        });
       }
 
-      // RESET: 현재 선택된 모든 홀드를 즉시 지웁니다.
-      function handleReset() { setSelectedSegments({}); }
+      // RESET: 현재 선택된 모든 홀드와 번호를 즉시 지웁니다.
+      function handleReset() {
+        setSelectedSegments({});
+        setSelectionOrder([]);
+      }
 
       function handleBack() {
         // 단일 벽 UI에서는 돌아갈 벽 선택 화면이 없습니다.
@@ -212,8 +222,10 @@
           ctx.strokeStyle = role.color;
           ctx.lineWidth = 10;
           ctx.stroke();
-          if (role.label) {
+          const orderNumber = selectionOrder.indexOf(String(seg.id)) + 1;
+          if (orderNumber > 0) {
             const p = seg.points.reduce((best, p) => p[1] > best[1] ? p : best, seg.points[0]);
+            const text = role.label ? `${orderNumber} ${role.label}` : String(orderNumber);
             ctx.font = 'bold 100px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = role.color;
@@ -221,8 +233,8 @@
             ctx.shadowBlur = 18;
             ctx.strokeStyle = 'rgba(0,0,0,0.35)';
             ctx.lineWidth = 8;
-            ctx.strokeText(role.label, p[0], p[1] - 100);
-            ctx.fillText(role.label, p[0], p[1] - 100);
+            ctx.strokeText(text, p[0], p[1] - 100);
+            ctx.fillText(text, p[0], p[1] - 100);
           }
           ctx.restore();
         });
@@ -354,10 +366,10 @@
                 return e('g', { key: seg.id, onClick: ev => handleSegmentClick(seg.id, ev), style: { cursor: 'pointer' } },
                   e('polygon', { points, fill: 'rgba(255,255,255,0.01)', stroke: '#fff', strokeWidth: 5 }),
                   e('polygon', { points, fill: 'none', stroke: role.color, strokeWidth: 10 }),
-                  role.label ? e('text', {
+                  e('text', {
                     x: bottom[0], y: bottom[1] - 80, fill: role.color, fontSize: 100, fontWeight: 'bold', textAnchor: 'middle',
                     style: { textShadow: '0 0 4px rgba(255,255,255,.95),0 0 12px rgba(255,255,255,.7)', paintOrder: 'stroke fill', stroke: 'rgba(0,0,0,.35)', strokeWidth: 1 }
-                  }, role.label) : null
+                  }, `${selectionOrder.indexOf(String(seg.id)) + 1}${role.label ? ' ' + role.label : ''}`)
                 );
               })
             )
